@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel RPS Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --accent: #ffcc00; 
+            --text-main: #ffffff;
+            --text-dim: #666666;
+            --grid-line: rgba(255, 255, 255, 0.03);
+            --border-color: #ffcc00;
+            
+            --font-pixel: 'VT323', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-pixel);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            /* PIXELATED GRID BACKGROUND */
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 40px 40px; 
+            box-shadow: inset 0 0 150px rgba(0,0,0,1);
+        }
+
+        /* --- utility classes --- */
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s steps(5) forwards; } /* steps(5) makes animation jerky/pixelated */
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* --- landing page --- */
+        .landing-screen {
+            text-align: center;
+            z-index: 10;
+            border: 4px solid var(--border-color); /* Thick borders for pixel look */
+            padding: 3rem 5rem;
+            background: #000;
+            box-shadow: 10px 10px 0px rgba(255, 204, 0, 0.2);
+            image-rendering: pixelated;
+        }
+
+        .main-title {
+            font-size: 6rem;
+            line-height: 0.8;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0px #333;
+        }
+
+        .title-accent { 
+            color: var(--accent); 
+            display: block;
+            font-size: 7rem;
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: #000;
+            font-family: var(--font-pixel);
+            font-size: 2.5rem;
+            padding: 10px 40px;
+            border: none;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 5px 5px 0px #fff;
+        }
+
+        .start-btn:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 3px 3px 0px #fff;
+        }
+
+        .start-btn:active {
+            transform: translate(5px, 5px);
+            box-shadow: none;
+        }
+
+        /* --- game container --- */
+        .game-container {
+            width: 95%;
+            max-width: 900px;
+            border: 4px solid var(--border-color);
+            background: #000;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        .match-info {
+            color: var(--accent);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px dashed var(--text-dim);
+            padding-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        /* scoreboard */
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding: 0 3rem;
+            font-size: 2rem;
+        }
+
+        .score-box h3 { 
+            font-size: 4rem; 
+            color: var(--text-main);
+            line-height: 1;
+        }
+
+        /* battlearea */
+        .battle-ground {
+            display: flex;
+            justify-content: space-between; /* Spaced out to sides */
+            align-items: center;
+            height: 250px; 
+            margin: 2rem 0;
+            position: relative;
+            padding: 0 20px;
+        }
+
+        .hand-wrapper {
+            position: relative;
+            width: 150px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* pixeleted hand */
+        .hand {
+            font-size: 8rem;
+            cursor: default;
+            user-select: none;
+            color: transparent;
+            text-shadow: 0 0 0 var(--accent);
+            
+            transition: text-shadow 0.2s;
+        }
+
+        /* ORIENTATION FIX */
+        /* Player (Left): Rotate 90deg to face Right */
+        #player-hand { 
+            transform: rotate(90deg); 
+            transform-origin: center;
+        }
+        
+        /* CPU (Right): Rotate -90deg and Flip to face Left correctly */
+        #computer-hand { 
+            transform: scaleX(-1) rotate(90deg); 
+            transform-origin: center;
+        }
+
+        .result-text {
+            font-size: 3rem;
+            color: var(--text-dim);
+        }
+
+        /* speech bubbles */
+        .speech-bubble {
+            position: absolute;
+            top: -50px;
+            background: #fff;
+            color: #000;
+            padding: 5px 15px;
+            font-size: 1.5rem;
+            border: 2px solid #000;
+            white-space: nowrap;
+            z-index: 5;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+            /* Pixelated styling */
+            image-rendering: pixelated; 
+        }
+        
+        /* Pixel Bubble Tail */
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: #fff transparent transparent transparent;
+        }
+
+        /* Shake Animations */
+        .shake-player { animation: shakeLeft 1.5s steps(10); }
+        .shake-computer { animation: shakeRight 1.5s steps(10); }
+
+        @keyframes shakeLeft {
+            0% { transform: rotate(90deg) translateX(0); }
+            50% { transform: rotate(90deg) translateX(0); }
+            100% { transform: rotate(90deg) translateX(0); }
+            15%, 35%, 65% { transform: rotate(90deg) translateX(-30px); }
+            25%, 45%, 75% { transform: rotate(90deg) translateX(0); }
+        }
+
+        @keyframes shakeRight {
+            0% { transform: scaleX(-1) rotate(90deg) translateX(0); }
+            50% { transform: scaleX(-1) rotate(90deg) translateX(0); }
+            100% { transform: scaleX(-1) rotate(90deg) translateX(0); }
+            15%, 35%, 65% { transform: scaleX(-1) rotate(90deg) translateX(-30px); } 
+            25%, 45%, 75% { transform: scaleX(-1) rotate(90deg) translateX(0); }
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .game-btn {
+            width: 80px;
+            height: 80px;
+            border: 3px solid var(--text-dim);
+            background: #000;
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: 0.1s;
+            /* Make icons inside buttons yellow silhouettes too */
+            color: transparent;
+            text-shadow: 0 0 0 var(--text-main);
+        }
+
+        .game-btn:hover { 
+            border-color: var(--accent);
+            text-shadow: 0 0 0 var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 4px 0 var(--accent);
+        }
+
+        .disabled-btn { opacity: 0.5; pointer-events: none; }
+
+        /* --- game over --- */
+        .game-over-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .winner-msg {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            color: var(--accent);
+            text-shadow: 3px 3px 0 #fff;
+        }
+
+        .final-score {
+            font-size: 5rem;
+            color: #fff;
+            margin-bottom: 2rem;
+            border-bottom: 4px solid var(--accent);
+        }
+
+        .nav-btn {
+            padding: 15px 30px;
+            font-family: var(--font-pixel);
+            font-size: 2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            border: none;
+            margin: 0 10px;
+            box-shadow: 5px 5px 0 #fff;
+            transition: 0.1s;
+        }
+
+        .btn-restart { background: var(--accent); color: #000; }
+        .btn-restart:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 #fff; }
+
+        .btn-menu { background: #333; color: #fff; }
+        .btn-menu:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 #fff; }
+
+        @media (max-width: 600px) {
+            .main-title { font-size: 4rem; }
+            .title-accent { font-size: 5rem; }
+            .hand { font-size: 5rem; }
+            .battle-ground { padding: 0; }
+            .winner-msg { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- landing page -->
+    <div class="landing-screen" id="landing-screen">
+        <h1 class="main-title">
+            Pixel <span class="title-accent">RPS</span> Arena
+        </h1>
+        <button class="start-btn" id="start-btn">INSERT COIN</button>
+    </div>
+
+    <!-- gameplay -->
+    <div class="game-container hidden" id="game-screen">
+        
+        <div class="match-info">TARGET SCORE: 3</div>
+
+        <div class="scoreboard">
+            <div class="score-box">
+                <p>P1</p>
+                <h3 id="p-score">0</h3>
+            </div>
+            <div class="score-box">
+                <p>CPU</p>
+                <h3 id="c-score">0</h3>
+            </div>
+        </div>
+
+        <div class="battle-ground">
+            <!-- player area (left) -->
+            <div class="hand-wrapper">
+                <div class="speech-bubble hidden" id="p-bubble">!</div>
+                <div class="hand" id="player-hand">✊</div>
+            </div>
+
+            <div class="result-text" id="status-text">VS</div>
+            
+            <!-- CPU area (right) -->
+            <div class="hand-wrapper">
+                <div class="speech-bubble hidden" id="c-bubble">!</div>
+                <div class="hand" id="computer-hand">✊</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="game-btn" data-choice="rock">✊</button>
+            <button class="game-btn" data-choice="paper">✋</button>
+            <button class="game-btn" data-choice="scissors">✌️</button>
+        </div>
+
+        <!-- game over overlay -->
+        <div class="game-over-screen hidden" id="end-screen">
+            <h2 class="winner-msg" id="winner-display">GAME OVER</h2>
+            <p class="final-score" id="final-score-display">0 - 0</p>
+            <div>
+                <button class="nav-btn btn-restart" id="restart-btn">RETRY</button>
+                <button class="nav-btn btn-menu" id="menu-btn">QUIT</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
